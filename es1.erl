@@ -11,8 +11,9 @@ is_palindrome(S) -> STR = [C || C <- string:casefold(S), C >= $a andalso C < $z+
 %is_an_anagram : string → string list → boolean that given a dictionary of strings,
 %checks if the input string is an anagram of one or more of the strings in the dictionary.
 
+prepare_string(S) -> lists:sort(string:casefold(S)).
 
-is_an_anagram(String, List) -> true.
+is_an_anagram(S, List) -> STR=prepare_string(S), lists:any(fun(X) -> prepare_string(X)==STR end, List).
 
 %factors: int → int list that given a number calculates all its prime factors;
 
