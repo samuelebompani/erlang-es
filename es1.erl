@@ -17,10 +17,14 @@ is_an_anagram(S, List) -> STR=prepare_string(S), lists:any(fun(X) -> prepare_str
 
 %factors: int → int list that given a number calculates all its prime factors;
 
-factors(N) -> [].
+factors(N) -> aux(N, N, 2, []).
+
+aux(N, _, M, L) when M*2 >= N -> L; 
+aux(N, D, M, L) when D rem M == 0 -> aux(N, round(D/M), M, [M | L]);
+aux(N, D, M, L) -> aux(N, D, M+1, L).
 
 %is_proper: int → boolean that given a number calculates if it is a perfect number or not,
 %where a perfect number is a positive integer equal to the sum of its proper positive divisors (excluding itself),
 %e.g., 6 is a perfect number since 1, 2 and 3 are the proper divisors of 6 and 6 is equal to 1+2+3;
 
-is_proper(N) -> true.
+is_proper(N) -> lists:sum([X || X <- lists:seq(1,round(N/2)), N rem X == 0 ]) == N.
