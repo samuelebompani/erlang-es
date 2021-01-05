@@ -11,14 +11,19 @@
 %    echo:print(Term) ⇒ ok
 %    echo:stop() ⇒ ok
 
-start() -> register(server, spawn(fun() -> loop() end)).
+%Then write a client to be connected to such a server and link these two processes each other. 
+%When the stop function is called, instead of sending the stop message, make the first process terminate abnormally.
+%This should result in the EXIT signal propagating to the other process, causing it to terminate as well.
 
-stop() -> server ! {stop, 0}.
+start() -> Pid = spawn(fun() -> loop() end),
+    register(server, Pid),
+    link(Pid).
+
+stop() -> exit(stop_called).
 
 print(Message) -> server ! {print, Message}.
 
 loop() ->
     receive
-        {print, Message} -> io:format("~p~n", [Message]), loop();
-        {stop, _} -> io:format("Shutting down... ~n"), exit(not_normal)
+        {print, Message} -> io:format("~p~n", [Message]), loop()
     end.
