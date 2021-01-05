@@ -1,28 +1,28 @@
 -module(counting).
 -export([start/0, pizza/1, pasta/1, risotto/1, zuppa/1, tot/0, stop/0]).
 
-start() -> Pid = spawn(fun() -> loop([]) end),
+%Write a module counting which provides the functionality for interacting with a 
+%server that counts how many times its services has been requested.
+%It has to implement several services dummy1, ... dummyn (doesn't matter what they do or their real interface)
+%and a service tot that returns a list of records indexed on each service (tot included)
+%containing also how many times such a service has been requested.
+%Test it from the shell.
+
+start() -> Pid = spawn(fun() -> loop(dict:new()) end),
     register(server, Pid), link(Pid).
 
 pizza(N) -> server ! {pizza, N}.
 pasta(N) -> server ! {pasta, N}.
 risotto(N) -> server ! {risotto, N}.
 zuppa(N) -> server ! {zuppa, N}.
-tot() -> server ! {tot, 1}.
+tot() -> server ! {tot}.
 stop() -> exit(we).
-
-loop(List) ->
-    receive
-        {pizza, N} -> io:format("pizza: ~p~n", [N]), loop(update(List,[], pizza, N));
-        {pasta, N} -> io:format("pasta: ~p~n", [N]), loop(update(List,[], pasta, N));
-        {risotto, N} -> io:format("risotto: ~p~n", [N]), loop(update(List,[], risotto, N));
-        {zuppa, N} -> io:format("zuppa: ~p~n", [N]), loop(update(List,[], zuppa, N));
-        {tot, _} -> spawn(fun() -> print_list(List, 0) end), loop(List)
-    end.
 
 print_list([], T) -> io:format("Totale ordini: ~p~n", [T]);
 print_list([{C, Q}|TL], T) -> io:format("~p: ~p~n", [C,Q]), print_list(TL, T+Q).
 
-update([], L2, Command, Quantity) -> [{Command, Quantity} | L2];
-update([{C, Q} | TL], L2, Command, Quantity) when C==Command -> lists:append([{C, Q+Quantity}| TL], L2);
-update([H | TL], L2, Command, Quantity) -> update(TL, [H | L2], Command, Quantity).
+loop(Dict) ->
+    receive
+         {Key, N} -> io:format("~p: ~p~n", [Key, N]), loop(dict:update(Key, fun(X) -> X+N end, N, Dict));
+         {tot} -> spawn(fun() -> print_list(dict:to_list(Dict), 0) end), loop(Dict)
+     end.
