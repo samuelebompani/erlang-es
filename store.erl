@@ -1,28 +1,30 @@
 -module(store).
--compile(export_all).
+-export([start/1, store/2, lookup/1, stop/0]).
 
-start(Host) -> {_, L} = net_adm:names(), find_nodes(L, Host),
-    put(store, spawn(fun() -> loop() end)).
-
-print() -> io:format("~w", [nodes()]).
+start(Host) -> 
+    ping_all(Host),
+    global:register_name(store, spawn(fun() -> loop(dict:new()) end)).
 
 store(Tag, Value) -> rpc({store, Tag, Value}).
 
 lookup(Tag) -> rpc({lookup, Tag}).
+
+stop() -> rpc({stop, 0}).
     
-rpc(Message) -> get(store) ! {Message, self()},
+rpc(Message) -> global:whereis_name(store) ! {Message, self()},
     receive
-        {store, _} -> ok;
-        {lookup, Tag, Response} -> io:format("~p: ~p~n", [Tag, Response])
+        {store, _} -> io:format("Ok, stored~n");
+        {lookup, Tag, {ok, Response}} -> io:format("~p: ~p~n", [Tag, Response]);
+        {lookup, Tag, _} -> io:format("ERROR, ~p not found~n", [Tag]);
+        {stop, ok} -> ok;
+        Other -> io:format("ERROR ~p~n", [Other])
     end.
 
-loop() ->
+loop(D) ->
     receive
-        {{store, Tag, Value}, Pid} -> io:format("~p: ~p~n", [Tag, Value]), Pid ! {store, 0}, loop();
-        {{lookup, Tag}, Pid} -> Pid ! {lookup, Tag, 10}, loop()
+        {{store, Tag, Value}, Pid} -> io:format("~p stored <~p ~p>~n", [Pid, Tag, Value]), Pid ! {store, 0}, loop(dict:store(Tag, Value, D));
+        {{lookup, Tag}, Pid} -> io:format("~p asked for ~p~n", [Pid, Tag]), Ret = dict:find(Tag, D), Pid ! {lookup, Tag, Ret}, loop(D);
+        {{stop, 0}, Pid} -> io:format("Stopped~n"), Pid ! {stop, ok}
     end.
 
-find_nodes([], _) ->  ok;
-find_nodes([H|TL], Host) -> {Name, _} = H,
-    net_adm:ping(list_to_atom(Name++"@"++atom_to_list(Host))),
-    find_nodes(TL, Host).
+ping_all(Host) -> lists:foreach(fun(X) -> net_adm:ping(X) end, net_adm:world_list([Host])).
